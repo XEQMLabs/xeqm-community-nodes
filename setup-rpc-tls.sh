@@ -22,9 +22,24 @@ if ! curl -fsS --max-time 6 "http://127.0.0.1:${RPC_PORT}/json_rpc" \
       -H 'Content-Type: application/json' \
       -d '{"jsonrpc":"2.0","id":"0","method":"get_info"}' >/dev/null 2>&1; then
   echo "ERROR: no public RPC on 127.0.0.1:${RPC_PORT}."
-  echo "       Set 'rpc-public=0.0.0.0:${RPC_PORT}' (or 127.0.0.1:${RPC_PORT}) on your PUBLIC node and retry."
+  echo "       Set 'rpc-public=127.0.0.1:${RPC_PORT}' on your PUBLIC node and retry (Caddy fronts it on :443)."
   echo "       Note: a bare service node has no public RPC — this script is for public nodes only."
   exit 1
+fi
+
+# 1b. Warn if the node still exposes its RPC directly (old-style public bind).
+# With Caddy terminating TLS on :443, a lingering --rpc-bind-ip /
+# --confirm-external-bind leaves an UNENCRYPTED public RPC alongside it —
+# redundant and a security risk. (Reported by a community operator: remove the
+# old flags when moving to the Caddy setup.)
+if pgrep -af 'xeqm-d' 2>/dev/null | grep -qE -- '--rpc-bind-ip|--confirm-external-bind' \
+   || grep -rqsE -- '(--)?rpc-bind-ip|(--)?confirm-external-bind' /etc/systemd/system/*xeqm* /etc/xeqm* 2>/dev/null; then
+  echo "WARNING: this node still binds its RPC to a public interface"
+  echo "         (--rpc-bind-ip / --confirm-external-bind, or rpc-bind-ip/confirm-external-bind in config)."
+  echo "         With Caddy fronting TLS on :443 that leaves an UNENCRYPTED public RPC exposed."
+  echo "         Remove those, bind RPC to localhost (rpc-public=127.0.0.1:${RPC_PORT}), and restart your node."
+  echo "         Continuing in 5s (Ctrl-C to fix first)…"
+  sleep 5
 fi
 
 # 2. pre-flight: does ${HOST} resolve to THIS machine? (stale A record = cert will fail)

@@ -27,6 +27,13 @@ Caddy obtains and renews the cert (HTTP-01 — works because the A record alread
 Idempotent. If the cert doesn't issue it's ~always 80/443 blocked at the cloud firewall or a stale
 A record — verify reachability from outside: `curl -sI http://cpn-N.xeqmlabs.com`.
 
+> **Already exposing your RPC directly?** If your node currently binds RPC to a public interface
+> (`--rpc-bind-ip` / `--confirm-external-bind`, or `rpc-bind-ip` / `confirm-external-bind` in the
+> config), **remove those and bind RPC to localhost** (`rpc-public=127.0.0.1:9232`). Otherwise you
+> keep an unencrypted public RPC alongside the new HTTPS one — the whole point is that :443 (Caddy)
+> is the only public surface. The setup script warns if it sees the old flags. _(Thanks to the
+> community operator who flagged this.)_
+
 ### Optional hardening
 Once HTTPS is confirmed, set `rpc-public=127.0.0.1:9232` and close 9232 at the firewall so :443 is
 the only public surface.
